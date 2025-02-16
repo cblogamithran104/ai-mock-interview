@@ -1,8 +1,8 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../lib/firebaseconfig"; // Ensure correct import
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../lib/firebaseconfig";
 
 const AuthHandler = () => {
   const { isSignedIn } = useAuth();
@@ -28,35 +28,44 @@ const AuthHandler = () => {
         const userRef = doc(db, "Users", user.id);
         const userSnap = await getDoc(userRef);
 
-        if (!userSnap.exists()) {
-          console.log("📝 User does not exist. Creating entry...");
+        // Prepare user data with proper checks
+        const userData = {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || "",
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          fullName: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || "",
+          lastSignIn: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          ...(!userSnap.exists() && { createdAt: serverTimestamp() }), // Only add createdAt for new users
+        };
 
-          const userData = {
-            id: user.id,
-            email: user.primaryEmailAddress?.emailAddress || "No email",
-            name: user.fullName || `${user.firstName} ${user.lastName}` || "No name",
-            createdAt: new Date().toISOString(),
-          };
+        // Always update user data to keep it fresh
+        await setDoc(userRef, userData, { merge: true });
+        console.log("✅ User data updated:", userData);
 
-          await setDoc(userRef, userData);
-          console.log("✅ User data stored:", userData);
-        } else {
-          console.log("✅ User already exists in Firestore.");
-        }
       } catch (error) {
-        console.error("❌ Error storing user data:", error);
+        console.error("❌ Error storing user data:", error.message);
       } finally {
         setLoading(false);
       }
     };
 
-    storeUserData();
-  }, [isSignedIn, user, pathname, navigate]);
+    if (isSignedIn && user) {
+      storeUserData();
+    }
+  }, [isSignedIn, user]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div>
       <h1>AuthHandler</h1>
-      <pre>{JSON.stringify(user, null, 2)}</pre>
+      {isSignedIn && user && (
+        <pre>{JSON.stringify(user, null, 2)}</pre>
+      )}
     </div>
   );
 };

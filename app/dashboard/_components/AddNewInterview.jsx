@@ -8,16 +8,52 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 
 function AddNewInterview() {
     const [openDialog, setOpenDialog] = useState(false)
+    const [formData, setFormData] = useState({
+        jobRole: '',
+        jobDescription: '',
+        yearsOfExperience: ''
+    })
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }))
+    }
+
+    const handleSubmit = async () => {
+        try {
+            // Validate form data
+            if (!formData.jobRole || !formData.jobDescription || !formData.yearsOfExperience) {
+                alert('Please fill in all fields')
+                return
+            }
+
+            // Add your submission logic here
+            console.log('Form submitted:', formData)
+            
+            // Clear form and close dialog
+            setFormData({
+                jobRole: '',
+                jobDescription: '',
+                yearsOfExperience: ''
+            })
+            setOpenDialog(false)
+        } catch (error) {
+            console.error('Error submitting form:', error)
+            alert('Error submitting form. Please try again.')
+        }
+    }
 
     return (
         <div>
             <div 
-                className='p-10 border rounded-lg bg-secondary hover:scale-105 hover:shadow-md cursor-pointer translate-all'
+                className='p-10 border rounded-lg bg-secondary hover:scale-105 hover:shadow-md cursor-pointer transition-all'
                 onClick={() => setOpenDialog(true)}
             >
                 <h2 className='text-lg text-center'>+ Add New</h2>
@@ -38,21 +74,44 @@ function AddNewInterview() {
                     </DialogDescription>
 
                     <div className='mt-7 my-3'>
-                        <label>Job Role/Job Position</label>
-                        <Input placeholder="Ex. Full Stack Developer" />
+                        <label className="block mb-2">Job Role/Job Position</label>
+                        <Input 
+                            name="jobRole"
+                            value={formData.jobRole}
+                            onChange={handleInputChange}
+                            placeholder="Ex. Full Stack Developer" 
+                        />
                     </div>
-                    <div className=' my-3'>
-                        <label>Job Description</label>
-                        <textarea placeholder="Ex. React,Angular,Nodejs,Mysql,etc.." />
+                    <div className='my-3'>
+                        <label className="block mb-2">Job Description</label>
+                        <textarea 
+                            name="jobDescription"
+                            value={formData.jobDescription}
+                            onChange={handleInputChange}
+                            className="w-full min-h-[100px] p-2 border rounded-md"
+                            placeholder="Ex. React, Angular, Node.js, MySQL, etc.." 
+                        />
                     </div>
-                    <div className=' my-3'>
-                        <label>Years of experience</label>
-                        <Input placeholder="Ex. 5" type="number"/>
+                    <div className='my-3'>
+                        <label className="block mb-2">Years of experience</label>
+                        <Input 
+                            name="yearsOfExperience"
+                            value={formData.yearsOfExperience}
+                            onChange={handleInputChange}
+                            placeholder="Ex. 5" 
+                            type="number"
+                            min="0"
+                        />
                     </div>
 
                     <div className='flex gap-5 justify-end'>
-                        <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancel</Button>
-                        <Button>Start Interview</Button>
+                        <Button 
+                            variant="ghost" 
+                            onClick={() => setOpenDialog(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSubmit}>Start Interview</Button>
                     </div>
                 </DialogContent>
             </Dialog>

@@ -16,7 +16,7 @@ function AddNewInterview() {
         jobRole: '',
         jobDescription: '',
         yearsOfExperience: ''
-    })
+    });
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -26,7 +26,8 @@ function AddNewInterview() {
         }))
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e) => {
+        e.preventDefault()
         try {
             // Validate form data
             if (!formData.jobRole || !formData.jobDescription || !formData.yearsOfExperience) {
@@ -48,6 +49,12 @@ function AddNewInterview() {
             console.error('Error submitting form:', error)
             alert('Error submitting form. Please try again.')
         }
+
+        const InputPrompt = `Job position: ${formData.jobRole}, Job Description: ${formData.jobDescription}, Years of Experience: ${formData.yearsOfExperience}, Depends on Job Position, job Description & Years of Experience give us ${process.env.NEXT_PUBLIC_INTERVIEW_QUESTION_COUNT} interview question along with answers in JSON format, Give us question and answer field on JSON`
+
+        const result = await chatSession.sendMessage(InputPrompt);
+
+        console.log(result.response.text());
     }
 
     return (
@@ -73,46 +80,51 @@ function AddNewInterview() {
                         </span>
                     </DialogDescription>
 
-                    <div className='mt-7 my-3'>
-                        <label className="block mb-2">Job Role/Job Position</label>
-                        <Input 
-                            name="jobRole"
-                            value={formData.jobRole}
-                            onChange={handleInputChange}
-                            placeholder="Ex. Full Stack Developer" 
-                        />
-                    </div>
-                    <div className='my-3'>
-                        <label className="block mb-2">Job Description</label>
-                        <textarea 
-                            name="jobDescription"
-                            value={formData.jobDescription}
-                            onChange={handleInputChange}
-                            className="w-full min-h-[100px] p-2 border rounded-md"
-                            placeholder="Ex. React, Angular, Node.js, MySQL, etc.." 
-                        />
-                    </div>
-                    <div className='my-3'>
-                        <label className="block mb-2">Years of experience</label>
-                        <Input 
-                            name="yearsOfExperience"
-                            value={formData.yearsOfExperience}
-                            onChange={handleInputChange}
-                            placeholder="Ex. 5" 
-                            type="number"
-                            min="0"
-                        />
-                    </div>
+                    <form onSubmit={handleSubmit}>
+                        <div className='mt-7 my-3'>
+                            <label className="block mb-2">Job Role/Job Position</label>
+                            <Input 
+                                name="jobRole"
+                                value={formData.jobRole}
+                                placeholder="Ex. Full Stack Developer" 
+                                required
+                                onChange={handleInputChange}
+                            />
+                        </div>
+                        <div className='my-3'>
+                            <label className="block mb-2">Job Description</label>
+                            <textarea 
+                                name="jobDescription"
+                                value={formData.jobDescription}
+                                className="w-full min-h-[100px] p-2 border rounded-md"
+                                placeholder="Ex. React, Angular, Node.js, MySQL, etc.." 
+                                required
+                                onChange={handleInputChange}
+                            />
+                        </div>
+                        <div className='my-3'>
+                            <label className="block mb-2">Years of experience</label>
+                            <Input 
+                                name="yearsOfExperience"
+                                value={formData.yearsOfExperience}
+                                placeholder="Ex. 5" 
+                                type="number"
+                                min="0" 
+                                required
+                                onChange={handleInputChange}
+                            />
+                        </div>
 
-                    <div className='flex gap-5 justify-end'>
-                        <Button 
-                            variant="ghost" 
-                            onClick={() => setOpenDialog(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSubmit}>Start Interview</Button>
-                    </div>
+                        <div className='flex gap-5 justify-end'>
+                            <Button 
+                                variant="ghost" 
+                                onClick={() => setOpenDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Start Interview</Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
         </div>

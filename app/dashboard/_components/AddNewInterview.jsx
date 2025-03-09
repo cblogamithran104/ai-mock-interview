@@ -2,13 +2,21 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { v4 as uuidv4 } from 'uuid'
 import { useUser } from '../../../lib/auth'  
 import moment from 'moment/moment'
 import { FirebaseError } from 'firebase/app'
-import { insert } from '../../../lib/db'
+import { doc, setDoc } from 'firebase/firestore'
+import { db } from '../../../lib/db'
+import { useRouter } from 'next/navigation'
 
 // Initialize with API version
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY)
@@ -16,13 +24,13 @@ const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY)
 function AddNewInterview() {
     const [openDialog, setOpenDialog] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [questions, setQuestions] = useState([])
     const [formData, setFormData] = useState({
         jobRole: '',
         jobDescription: '',
         yearsOfExperience: ''
-    })
-    const {user}=useUser();
+    });
+    const { user } = useUser();
+    const router = useRouter();
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -33,18 +41,19 @@ function AddNewInterview() {
     }
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
-        setLoading(true)
-        
+        e.preventDefault();
+        setLoading(true);
+
         try {
             if (!formData.jobRole || !formData.jobDescription || !formData.yearsOfExperience) {
-                alert('Please fill in all fields')
-                return
+                alert('Please fill in all fields');
+                return;
             }
 
-            const model = genAI.getGenerativeModel({ 
-                model: "gemini-2.0-flash"
-            })
+            // Use a valid model that supports generateContent
+            const model = genAI.getGenerativeModel({
+                model: "valid-model-name" // Replace with a valid model name
+            });
 
             // Use generateContent instead of chat for this version
             const result = await model.generateContent({
@@ -66,36 +75,41 @@ function AddNewInterview() {
                                }`
                     }]
                 }]
-            })
+            });
 
-            const response = await result.response
-            const text = response.text()
-            
+            const response = await result.response;
+            const text = await response.text();
+
             try {
-                const cleanedText = text.replace(/```json|\n```/g, '').trim();
+                // Clean the response text
+                const cleanedText = text.replace(/```json|```/g, '').trim();
                 const jsonData = JSON.parse(cleanedText);
-                
+
                 if (!jsonData.questions || !Array.isArray(jsonData.questions)) {
                     throw new Error('Invalid response format');
                 }
 
-                setQuestions(jsonData.questions);
                 console.log('Questions generated:', jsonData.questions);
-                if(jsonData) {
-                    const resp = await insert('interviews', {
-                        mockId: uuidv4(),
-                        jsonData: jsonData,
-                        jobRole: formData.jobRole,
-                        jobDescription: formData.jobDescription,
-                        yearsOfExperience: formData.yearsOfExperience,
-                        createdBy: user?.primaryEmailAddress?.emailAddress,
-                        createdAt: moment().format('DD-MM-YYYY')
-                    });
-                    
-                    console.log("Inserted ID:", resp.mockId);
-                    if(resp){
-                        setOpenDialog(false);
-                    }
+                const mockId = uuidv4();
+                const interviewData = {
+                    mockId,
+                    jsonData,
+                    jobRole: formData.jobRole,
+                    jobDescription: formData.jobDescription,
+                    yearsOfExperience: formData.yearsOfExperience,
+                    createdBy: user?.primaryEmailAddress?.emailAddress,
+                    createdAt: moment().format('DD-MM-YYYY')
+                };
+
+                const interviewRef = doc(db, "interviews", mockId);
+                console.log("Saving interview with ID:", mockId);
+                await setDoc(interviewRef, interviewData);
+                console.log("Interview saved successfully!");
+
+                if (interviewRef) {
+                    console.log("Navigating to:", `/dashboard/interview/${mockId}`);
+                    setOpenDialog(false);
+                    router.push(`/dashboard/interview/${mockId}`);
                 }
 
                 // Reset form and close dialog
@@ -191,28 +205,8 @@ function AddNewInterview() {
                     </form>
                 </DialogContent>
             </Dialog>
-
-            {questions.length > 0 && (
-                <QuestionsList questions={questions} />
-            )}
         </div>
     )
-}
-
-// New component for displaying questions
-function QuestionsList({ questions }) {
-    if (!questions.length) return null;
-
-    return (
-        <div className="space-y-4">
-            {questions.map((q, index) => (
-                <div key={index} className="p-4 border rounded-lg">
-                    <h3 className="font-bold">Q{index + 1}: {q.question}</h3>
-                    <p className="mt-2 text-gray-600">{q.answer}</p>
-                </div>
-            ))}
-        </div>
-    );
 }
 
 export default AddNewInterview

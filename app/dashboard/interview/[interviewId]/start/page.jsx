@@ -6,6 +6,9 @@ import Image from 'next/image'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { toast, Toaster } from 'sonner'
 import RecordAnswerSection from '@/app/dashboard/_components/RecordAnswerSection'
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { Volume2, VolumeX } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 function StartInterview({ params: paramsPromise }) {
   const params = use(paramsPromise); // ✅ Fix: Unwrap params using use()
@@ -29,6 +32,8 @@ function StartInterview({ params: paramsPromise }) {
   } = useSpeechRecognition({
     continuous: true,
   })
+
+  const { speak, stop, isSpeaking } = useTextToSpeech();
 
   useEffect(() => {
     if (!browserSupportsSpeechRecognition) {
@@ -81,6 +86,15 @@ function StartInterview({ params: paramsPromise }) {
     )
   }
 
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      const currentQuestionText = `Question ${currentQuestion + 1}: ${questions[currentQuestion]?.question}`;
+      speak(currentQuestionText);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster richColors />
@@ -106,6 +120,28 @@ function StartInterview({ params: paramsPromise }) {
                 <h2 className="text-xl font-semibold text-gray-800">
                   {questions[currentQuestion]?.question}
                 </h2>
+                
+                <div className="flex justify-start mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSpeak}
+                    className="flex items-center gap-2"
+                  >
+                    {isSpeaking ? (
+                      <>
+                        <VolumeX className="w-5 h-5" />
+                        <span>Stop Reading</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-5 h-5" />
+                        <span>Read Question</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
                 {!recordingStarted && (
                   <div className="p-4 mt-4 border border-blue-100 rounded-lg bg-blue-50">
                     <h3 className="text-lg font-semibold text-blue-700">Tips before you start recording:</h3>

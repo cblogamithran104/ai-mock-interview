@@ -12,9 +12,9 @@ function header() {
     },[])
 
   return (
-    <div className='flex p-4 items-center justify-between bg-secondary shadow-sm'>
-        <Image src={'/logo.svg'} width={160} height={100} alt='logo'/> 
-        <ul className='hidden md:flex gap-6'>
+    <div className='flex items-center justify-between p-4 shadow-sm bg-secondary'>
+        <Image src={'/logo1.svg'} width={160} height={100} alt='logo'/> 
+        <ul className='hidden gap-6 md:flex'>
             <li className={`"hover:text-primary hover:font-bold transition cursor-pointer" 
             ${path=='/dasboard'&&'text-primary font bold'}`}
             

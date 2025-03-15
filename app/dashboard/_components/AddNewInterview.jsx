@@ -16,10 +16,12 @@ import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../../../lib/db'
 import { useRouter } from 'next/navigation'
 import { chatSession } from "../../../utils/GeminiAimodal"
+import { LoadingOverlay } from '@/components/ui/loading-overlay';
 
 function AddNewInterview() {
     const [openDialog, setOpenDialog] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [isGenerating, setIsGenerating] = useState(false);
     const [formData, setFormData] = useState({
         jobRole: '',
         jobDescription: '',
@@ -39,6 +41,7 @@ function AddNewInterview() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setIsGenerating(true);
 
         try {
             if (!formData.jobRole || !formData.jobDescription || !formData.yearsOfExperience) {
@@ -46,40 +49,45 @@ function AddNewInterview() {
                 return;
             }
 
-            const prompt = `Generate ${process.env.NEXT_PUBLIC_INTERVIEW_QUESTION_COUNT} interview questions with answers for the following job:
+            const prompt = `Generate ${process.env.NEXT_PUBLIC_INTERVIEW_QUESTION_COUNT} interview questions for the following job:
                            Job Position: ${formData.jobRole}
                            Job Description: ${formData.jobDescription}
                            Years of Experience: ${formData.yearsOfExperience}
 
-                           Return the response in this exact JSON format:
-                           {
-                             "questions": [
-                               {
-                                 "question": "question text here",
-                                 "answer": "answer text here"
-                               }
-                             ]
-                           }`;
+                           Format the response as a valid JSON array with this exact structure:
+                           [
+                             {
+                               "id": 1,
+                               "question": "question text here",
+                               "category": "Technical/System Design/Problem Solving/Leadership"
+                             }
+                           ]`;
 
-            // Fixed: Correct way to send message to chat session
             const result = await chatSession.sendMessage(prompt);
             const response = await result.response;
             const text = await response.text();
-
-            // ✅ Cleaning the JSON Response
-            const cleanedText = text.replace(/```json|```/g, '').trim();
-            const jsonData = JSON.parse(cleanedText);
-
-            // ✅ Validate if the response contains questions
-            if (!jsonData.questions || !Array.isArray(jsonData.questions)) {
-                throw new Error('Invalid response format');
+            
+            // Add error handling for JSON parsing
+            let jsonData;
+            try {
+                // Clean the response and parse JSON
+                const cleanedText = text.replace(/```json|```/g, '').trim();
+                console.log('Cleaned response:', cleanedText);
+                jsonData = JSON.parse(cleanedText);
+                
+                if (!Array.isArray(jsonData)) {
+                    throw new Error('Response is not an array');
+                }
+            } catch (parseError) {
+                console.error('JSON Parse Error:', parseError);
+                throw new Error('Failed to parse AI response');
             }
 
-            // ✅ Save to Firestore
+            // Save to Firestore
             const mockId = uuidv4();
             const interviewData = {
                 mockId,
-                jsonData,
+                questions: jsonData,
                 jobRole: formData.jobRole,
                 jobDescription: formData.jobDescription,
                 yearsOfExperience: formData.yearsOfExperience,
@@ -90,15 +98,20 @@ function AddNewInterview() {
             const interviewRef = doc(db, "interviews", mockId);
             await setDoc(interviewRef, interviewData);
 
-            // ✅ Close the dialog and redirect
-            setOpenDialog(false);
-            router.push(`/dashboard/interview/${mockId}`);
+            // Delay navigation for better UX
+            setTimeout(() => {
+                setOpenDialog(false);
+                setTimeout(() => {
+                    router.push(`/dashboard/interview/${mockId}/start`);
+                }, 500);
+            }, 1000);
 
         } catch (error) {
             console.error('Error:', error);
             alert('Error generating questions. Please try again.');
         } finally {
             setLoading(false);
+            setIsGenerating(false);
         }
     };
 
@@ -124,6 +137,8 @@ function AddNewInterview() {
                             Add details about your job position/role, job description, and years of experience.
                         </span>
                     </DialogDescription>
+
+                    {isGenerating && <LoadingOverlay />}
 
                     <form onSubmit={handleSubmit}>
                         <div className='my-3 mt-7'>
@@ -168,7 +183,7 @@ function AddNewInterview() {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>
-                                {loading ? 'Generating Questions...' : 'Start Interview'}
+                                {loading ? 'AI Generating Questions...' : 'Start Interview'}
                             </Button>
                         </div>
                     </form>

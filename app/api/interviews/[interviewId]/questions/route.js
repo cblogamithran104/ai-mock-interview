@@ -21,13 +21,15 @@ export async function GET(request) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-    const models = await genAI.listModels();
-    console.log('Available Models:', models);
-
-    const validModel = models.models.find(m => m.name.includes('gemini'))?.name || 'gemini-pro';
-    console.log('Using Model:', validModel);
-
-    const model = genAI.getGenerativeModel({ model: validModel });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.9,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 2048,
+      }
+    });
 
     const prompt = `Create 5 professional-level technical interview questions for a ${seniority} Software Developer position.
     
@@ -52,7 +54,7 @@ export async function GET(request) {
        - Ask about best practices and anti-patterns
        - Cover both technical depth and breadth
 
-    Return ONLY a JSON array with this exact format:
+    Return ONLY a JSON array with this exact format, no additional text or markdown:
     [
       {
         "id": number,
@@ -65,19 +67,41 @@ export async function GET(request) {
       contents: [{ parts: [{ text: prompt }] }]
     });
 
-    if (!result || !result.response || !result.response.candidates) {
-      console.error("Invalid API response structure", result);
-      throw new Error('Invalid API response');
+    const response = await result.response;
+    const text = await response.text();
+    
+    // Clean the response and parse JSON
+    const cleanedText = text.replace(/```json|```/g, '').trim();
+    console.log('Cleaned response:', cleanedText);
+    
+    try {
+      const questions = JSON.parse(cleanedText);
+      
+      if (!Array.isArray(questions) || questions.length === 0) {
+        console.error("Invalid questions format:", questions);
+        throw new Error('Invalid response format');
+      }
+
+      // Validate question format
+      const validQuestions = questions.every(q => 
+        q.id && 
+        typeof q.id === 'number' && 
+        q.question && 
+        typeof q.question === 'string' &&
+        q.category &&
+        typeof q.category === 'string'
+      );
+
+      if (!validQuestions) {
+        throw new Error('Invalid question format');
+      }
+
+      return NextResponse.json(questions);
+    } catch (jsonError) {
+      console.error('JSON parsing error:', jsonError);
+      console.log('Raw response:', text);
+      return NextResponse.json(fallbackQuestions);
     }
-
-    const questions = result.response.candidates[0].content.parts.map(part => part.text);
-
-    if (!Array.isArray(questions) || questions.length === 0) {
-      console.error("Invalid questions format:", questions);
-      throw new Error('Invalid response format');
-    }
-
-    return NextResponse.json(questions);
   } catch (error) {
     console.error('API route error:', error);
     return NextResponse.json(fallbackQuestions);
